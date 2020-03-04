@@ -1,0 +1,71 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+ 
+
+```{r}
+library(tidyverse)
+```
+
+
+```{r}
+wsd <- read_csv("data/SHEN_bfi_rr_monthly.csv")
+```
+
+```{r}
+wsd %>% filter(watershed == "paine" & rr < 3) %>%
+  arrange(date) %>%
+  ggplot(aes(x = date, y = rr, color = as.factor(year(date)))) +
+  geom_point()+
+  geom_line()
+```
+
+```{r}
+wsd %>%
+  arrange(date) %>% #filter(rr < 3) %>%
+  ggplot(aes(x = date, y = monthly_BFI)) +
+  geom_line()+
+  geom_point(aes(color = log(Pmm)))+
+  facet_grid(rows = vars(watershed))
+```
+```{r}
+wsd %>%
+  arrange(date) %>% 
+  ggplot(aes(x = date, y = Qmmd)) +
+  geom_line()+
+  geom_line(aes(x = date, y = baseflow), color = "blue")+
+  facet_grid(rows = vars(watershed))
+```
+```{r}
+wsd %>%
+  arrange(date) %>% 
+  ggplot(aes(x = date, y = baseflow)) +
+  geom_line()+
+  facet_grid(rows = vars(watershed))
+```
+```{r}
+wsd %>%
+  arrange(date) %>% #filter(rr < 3) %>%
+  ggplot(aes(x = monthly_BFI, y = Pmm)) +
+  geom_point(aes(color = log(Pmm)))+
+  facet_grid(cols = vars(watershed))
+```
+```{r}
+wsd %>%
+  ggplot(aes(x = watershed, y = monthly_BFI)) +
+  geom_boxplot()
+
+```
+```{r}
+wsd %>% filter(rr < 3) %>%
+  ggplot(aes(x = watershed, y = rr, fill = drought)) +
+  geom_boxplot()
+
+```
+```{r}
+wsd %>% 
+  ggplot(aes(x = watershed, y = monthly_BFI, fill = drought)) +
+  geom_boxplot()
+
+```
