@@ -1,0 +1,89 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Combine calculated monthly RR and BFI into one file and add drought information
+
+```{r}
+library(tidyverse)
+library(lubridate)
+```
+
+Combine all BFI and RR data
+```{r}
+bfipaine <- read_csv("data/BFImonthly_PAINE.csv") %>% select(-Qmmd)
+bfipine <- read_csv("data/BFImonthly_PINE.csv") %>% select(-Qmmd)
+bfistan <- read_csv("data/BFImonthly_STAN.csv") %>% select(-Qmmd)
+
+rrpaine <- read_csv("data/PQ_Paine.csv")
+rrpine <- read_csv("data/PQ_Pine.csv")
+rrstan <- read_csv("data/PQ_Stan.csv")
+
+paine <- left_join(bfipaine, rrpaine, by = "date")
+pine <- left_join(bfipine, rrpine, by = "date")
+stan <- left_join(bfistan, rrstan, by = "date")
+
+bfirr <- bind_rows("paine" = paine,"pine" = pine,"stan" = stan, .id = "watershed")
+
+```
+
+
+Create drought index
+Paine is in Augusta County 
+Staunton is in Madison County
+and Piney is in Rappahannock
+```{r}
+drought <- read_csv("data/VA_drought_counties_2000-2020.csv")
+drought <- drought %>% 
+  filter(County %in% c("Augusta County", "Madison County","Rappahannock County")) %>%
+  mutate(ValidStart = mdy(ValidStart))
+  
+
+#set drought equal to whatever D value has the highest percentage of the county
+maxDroughtCondition <- drought %>% 
+  rownames_to_column('id') %>%  # creates an ID number
+  pivot_longer(cols = None:D4, names_to = "Percent") %>% 
+  group_by(id) %>% 
+  filter(rank(-value) == 1) %>%
+  ungroup() %>%
+  select(County, ValidStart, Percent, value) %>%
+  mutate(Percent = as.factor(Percent))
+
+#determine monthly drought condition
+
+#create mode function
+Mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+monthlyDrought <- maxDroughtCondition %>%
+  group_by(month(ValidStart), year(ValidStart), County) %>%
+  summarize(Mode(Percent))
+
+colnames(monthlyDrought) <- c("month", "year", "county", "drought")
+
+monthlyDrought$date <- dmy(paste("1", monthlyDrought$month, monthlyDrought$year))
+
+droughts <- monthlyDrought %>% ungroup() %>%
+  select(date, county, drought)
+
+```
+
+Add dourght data to hydro data
+Paine is in Augusta County 
+Staunton is in Madison County
+and Piney is in Rappahannock
+```{r}
+counties <- tibble(
+  watershed = c("paine", "stan", "pine"), 
+  county = c("Augusta County", "Madison County", "Rappahannock County"))
+
+droughts <- left_join(droughts, counties, "county")
+
+bfirrD <- left_join(bfirr, droughts, c("watershed", "date"))
+
+write.csv(bfirrD, "data/SHEN_bfi_rr_monthly.csv")
+```
+
